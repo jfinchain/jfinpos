@@ -1,0 +1,66 @@
+services:
+  reth:
+    image: ghcr.io/paradigmxyz/reth:latest
+    container_name: reth
+    network_mode: host 
+    ports:
+      - "8543:8543"
+      - "8544:8544"
+      - "30304:30304/tcp"
+      - "30304:30304/udp"
+    command:
+      - node
+      - --chain=/config/genesis.json
+      - --datadir=/execution-data
+      - --authrpc.jwtsecret=/config/jwt.hex
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8552
+      - --http
+      - --http.api=all
+      - --http.addr=0.0.0.0
+      - --http.port=8543
+      - --http.corsdomain="*"
+      - --ws
+      - --ws.api=all
+      - --ws.addr=0.0.0.0
+      - --ws.port=8544
+      - --ws.origins="*"
+      - --port=30304
+    volumes:
+      - ./data/execution-data:/execution-data
+      - ./config:/config
+    restart: unless-stopped
+
+  beacon:
+    image: sigp/lighthouse:latest-unstable
+    network_mode: host 
+    command:
+      - lighthouse
+      - beacon_node
+      - --datadir=/consensus-data
+      - --disable-peer-scoring
+      - --disable-packet-filter
+      - --staking
+      - --validator-monitor-auto
+      - --http-allow-origin=*
+      - --listen-address=0.0.0.0
+      - --port=9005
+      - --http
+      - --http-address=0.0.0.0
+      - --http-port=6052
+      - --testnet-dir=/config
+      - --enr-address=${NODE_PUBLIC_IP}
+      - --enr-udp-port=9005
+      - --enr-tcp-port=9005
+      - --execution-endpoints=http://65.21.72.239:8552
+      - --jwt-secrets=/config/jwt.hex
+      - --suggested-fee-recipient=${FEE_RECIPIENT}
+      - --disable-optimistic-finalized-sync
+      - --boot-nodes=${CL_NODES}
+    volumes:
+      - ./data/consensus-data:/consensus-data
+      - ./config:/config
+    depends_on:
+      - reth
+    restart: unless-stopped
+
